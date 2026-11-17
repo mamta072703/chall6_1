@@ -1,0 +1,8 @@
+{
+  "name": "AirAware AI",
+  "description": "GenAI-powered smart air quality, winter smog navigation, indoor air protection, and sustainable living assistant.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
