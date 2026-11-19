@@ -25,7 +25,7 @@ const PRESET_CITIES: LocationSelection[] = [
 ];
 
 export const AirExplorerPage: React.FC = () => {
-  const { profile, snapshot, setLocation, loadingSnapshot } = useAirAware();
+  const { profile, snapshot, snapshotError, setLocation, loadingSnapshot } = useAirAware();
   const [chartMetric, setChartMetric] = useState<'usAqi' | 'pm25' | 'pm10'>('usAqi');
 
   const pollutantBars = snapshot
@@ -44,6 +44,14 @@ export const AirExplorerPage: React.FC = () => {
       subtitle="Search global locations, inspect hourly winter inversion patterns, and compare major pollutants"
     >
       <div className="space-y-6">
+        {snapshotError && (
+          <div
+            className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-900 text-sm"
+            role="alert"
+          >
+            {snapshotError}
+          </div>
+        )}
         {/* Location Selection Panel */}
         <section className="bg-white border border-slate-200 rounded-xl p-5 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">

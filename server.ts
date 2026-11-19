@@ -270,13 +270,22 @@ export function createApp(deps: ServerDependencies = {}): Express {
     res.json(updated);
   });
 
+  // Return structured JSON 404 for unknown API paths rather than HTML SPA fallback
+  app.use('/api', (_req: Request, res: Response) => {
+    res.status(404).json({ error: 'API endpoint not found.' });
+  });
+
   return app;
 }
 
 async function startServer(): Promise<void> {
   const app = createApp();
   const port = Number(process.env.PORT) || 3000;
-  const isProd = process.env.NODE_ENV === 'production';
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const distPath = path.join(__dirname, 'dist');
+  const isProd =
+    process.env.NODE_ENV === 'production' ||
+    process.env.npm_lifecycle_event === 'start';
 
   if (!isProd) {
     const { createServer: createViteServer } = await import('vite');
@@ -286,8 +295,6 @@ async function startServer(): Promise<void> {
     });
     app.use(vite.middlewares);
   } else {
-    const __dirname = path.dirname(fileURLToPath(import.meta.url));
-    const distPath = path.join(__dirname, 'dist');
     app.use(express.static(distPath));
     app.get('*', (_req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
@@ -299,9 +306,19 @@ async function startServer(): Promise<void> {
   });
 }
 
-// Start HTTP server only when executed directly (allows supertest imports without binding port 3000)
-const isDirectEntry =
-  process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
+// Start HTTP server when executed directly (allows supertest imports without binding a port)
+let isDirectEntry = false;
+if (process.argv[1]) {
+  try {
+    const fs = await import('node:fs');
+    isDirectEntry =
+      fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    isDirectEntry =
+      path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
+  }
+}
+
 if (isDirectEntry) {
   startServer().catch((err) => {
     console.error('Failed to start server:', err);
