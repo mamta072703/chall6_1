@@ -20,6 +20,7 @@ export const ActionPlannerPage: React.FC = () => {
   const [customPeriod, setCustomPeriod] = useState<ActionPlannerItem['period']>('Morning');
   const [customCost, setCustomCost] = useState('Free');
   const [customBenefit, setCustomBenefit] = useState('');
+  const [customError, setCustomError] = useState<string | null>(null);
 
   const filtered = actions.filter((a) => periodFilter === 'All' || a.period === periodFilter);
   const completedCount = actions.filter((a) => a.completed).length;
@@ -31,7 +32,11 @@ export const ActionPlannerPage: React.FC = () => {
 
   const handleAddCustom = (e: React.FormEvent) => {
     e.preventDefault();
-    if (customTitle.trim().length < 4) return;
+    if (customTitle.trim().length < 4) {
+      setCustomError('Please enter an action title of at least 4 characters.');
+      return;
+    }
+    setCustomError(null);
     addCustomAction({
       title: customTitle.trim(),
       period: customPeriod,
@@ -60,7 +65,14 @@ export const ActionPlannerPage: React.FC = () => {
             <p className="text-2xl font-display font-semibold text-slate-900 tabular-nums">
               {completedCount} / {actions.length} ({completionPct}%)
             </p>
-            <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+            <div
+              className="h-2 w-full bg-slate-100 rounded-full overflow-hidden"
+              role="progressbar"
+              aria-label="Daily action completion progress"
+              aria-valuenow={completionPct}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
               <div
                 className="h-full bg-teal-700 transition-all"
                 style={{ width: `${completionPct}%` }}
@@ -120,11 +132,21 @@ export const ActionPlannerPage: React.FC = () => {
                   id="custom-action-title"
                   type="text"
                   required
+                  aria-invalid={Boolean(customError)}
+                  aria-describedby={customError ? 'custom-action-error' : undefined}
                   value={customTitle}
-                  onChange={(e) => setCustomTitle(e.target.value)}
+                  onChange={(e) => {
+                    setCustomTitle(e.target.value);
+                    if (customError) setCustomError(null);
+                  }}
                   placeholder="e.g., Wipe down entryway shoes and coats after commute"
                   className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg"
                 />
+                {customError && (
+                  <p id="custom-action-error" role="alert" className="mt-1 text-xs text-rose-700">
+                    {customError}
+                  </p>
+                )}
               </div>
               <div>
                 <label htmlFor="custom-action-period" className="block text-xs text-slate-600 mb-1">
@@ -188,13 +210,14 @@ export const ActionPlannerPage: React.FC = () => {
         )}
 
         {/* Filter Tabs */}
-        <div className="inline-flex p-1 bg-slate-200/70 rounded-lg">
+        <div className="inline-flex p-1 bg-slate-200/70 rounded-lg" role="group" aria-label="Filter actions by time period">
           {(['All', 'Morning', 'Afternoon', 'Evening'] as const).map((period) => (
             <button
               key={period}
               type="button"
+              aria-pressed={periodFilter === period}
               onClick={() => setPeriodFilter(period)}
-              className={`px-3.5 py-1.5 text-xs font-medium rounded-md transition-colors ${
+              className={`px-3.5 py-2 text-xs font-medium rounded-md transition-colors min-h-[36px] ${
                 periodFilter === period
                   ? 'bg-white text-slate-900 shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
@@ -210,7 +233,7 @@ export const ActionPlannerPage: React.FC = () => {
           {filtered.map((item) => (
             <div
               key={item.id}
-              className={`bg-white border rounded-xl p-4 sm:p-5 flex items-start gap-4 transition-colors ${
+              className={`bg-white border rounded-xl p-4 sm:p-5 flex items-start gap-3 transition-colors ${
                 item.completed ? 'border-teal-200 bg-teal-50/30' : 'border-slate-200'
               }`}
             >
@@ -219,13 +242,17 @@ export const ActionPlannerPage: React.FC = () => {
                 onClick={() => toggleActionComplete(item.id)}
                 aria-pressed={item.completed}
                 aria-label={`Toggle completion for ${item.title}`}
-                className={`mt-0.5 w-6 h-6 rounded-md border flex items-center justify-center shrink-0 transition-colors ${
-                  item.completed
-                    ? 'bg-teal-700 border-teal-700 text-white'
-                    : 'bg-white border-slate-300 hover:border-teal-600'
-                }`}
+                className="p-2 -m-2 shrink-0 flex items-center justify-center rounded-lg hover:bg-slate-100/70 min-h-[44px] min-w-[44px]"
               >
-                {item.completed && <CheckCircle2 className="w-4 h-4" />}
+                <span
+                  className={`w-6 h-6 rounded-md border flex items-center justify-center transition-colors ${
+                    item.completed
+                      ? 'bg-teal-700 border-teal-700 text-white'
+                      : 'bg-white border-slate-300'
+                  }`}
+                >
+                  {item.completed && <CheckCircle2 className="w-4 h-4" aria-hidden="true" />}
+                </span>
               </button>
 
               <div className="flex-1 min-w-0 space-y-1.5">

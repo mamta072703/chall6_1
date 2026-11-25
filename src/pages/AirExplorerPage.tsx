@@ -159,7 +159,16 @@ export const AirExplorerPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="h-72 w-full" role="img" aria-label={`48 hour ${chartMetric} chart`}>
+                <p id="explorer-trend-summary" className="sr-only">
+                  {`Hourly ${chartMetric} trajectory across ${snapshot.hourlyTrend.length} points for ${snapshot.location.name}, currently ${snapshot.currentAqi} US AQI.`}
+                </p>
+
+                <div
+                  className="h-72 w-full"
+                  role="img"
+                  aria-label={`48 hour ${chartMetric} chart`}
+                  aria-describedby="explorer-trend-summary"
+                >
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={snapshot.hourlyTrend}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -201,7 +210,15 @@ export const AirExplorerPage: React.FC = () => {
                     Current atmospheric mix (CO excluded for scale: {snapshot.pollutants.co ?? 'N/A'} µg/m³)
                   </p>
                 </div>
-                <div className="h-72 w-full" role="img" aria-label="Major pollutants bar chart">
+                <p id="explorer-pollutants-summary" className="sr-only">
+                  {`PM2.5 is ${snapshot.pollutants.pm25 ?? 'unavailable'} µg/m³, PM10 is ${snapshot.pollutants.pm10 ?? 'unavailable'} µg/m³, NO2 is ${snapshot.pollutants.no2 ?? 'unavailable'} µg/m³.`}
+                </p>
+                <div
+                  className="h-72 w-full"
+                  role="img"
+                  aria-label="Major pollutants bar chart"
+                  aria-describedby="explorer-pollutants-summary"
+                >
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={pollutantBars}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />

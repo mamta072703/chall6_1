@@ -1,4 +1,8 @@
 import {
+  createDefaultCommunityData,
+  type CommunityStoreData,
+} from '../shared/communitySeed.ts';
+import {
   buildSampleFallbackSnapshot,
   fetchOpenMeteoSnapshot,
   searchOpenMeteoLocations,
@@ -6,8 +10,6 @@ import {
 import type {
   AirQualitySnapshot,
   AssistantChatMessage,
-  CommunityAggregateStats,
-  CommunityCampaign,
   CommunityChallenge,
   CommunityTip,
   DailyRoutinePlan,
@@ -15,117 +17,25 @@ import type {
   LocationSelection,
   UserProfile,
 } from '../shared/types.ts';
+import { sanitizePlainText } from '../shared/validation.ts';
 
 const LOCAL_COMMUNITY_KEY = 'airaware_static_community_v1';
 
-interface LocalCommunityState {
-  stats: CommunityAggregateStats;
-  tips: CommunityTip[];
-  challenges: CommunityChallenge[];
-  campaigns: CommunityCampaign[];
-}
-
-const STATIC_COMMUNITY_SEED: LocalCommunityState = {
-  stats: {
-    totalCleanCommuteDays: 1428,
-    totalIndoorProtectionActions: 3190,
-    totalEnergySavingActions: 2045,
-    activeHouseholdsParticipating: 384,
-    methodologyNote:
-      'Aggregated anonymized counts across participating households (local session fallback active when backend API is unavailable).',
-  },
-  tips: [
-    {
-      id: 'tip-1',
-      category: 'indoor_air',
-      title: 'Seal bedroom window frames with foam weatherstripping before winter peaks',
-      body: 'Adding adhesive EPDM foam tape around sliding window tracks visibly cuts cold drafts and fine particulate infiltration overnight for under $10.',
-      estimatedCostLabel: 'Low cost ($5–$12)',
-      helpfulCount: 42,
-      createdAtIso: '2026-11-10T08:30:00.000Z',
-    },
-    {
-      id: 'tip-2',
-      category: 'clean_commute',
-      title: 'Switch morning school drop-offs under 2 km to walking groups or metro feeder',
-      body: 'Short cold-start petrol trips generate disproportionate exhaust near school gates. Coordinating a 4-family walking bus removes 3–4 cold starts daily.',
-      estimatedCostLabel: 'Free',
-      helpfulCount: 37,
-      createdAtIso: '2026-11-12T14:15:00.000Z',
-    },
-    {
-      id: 'tip-4',
-      category: 'indoor_air',
-      title: 'Run kitchen exhaust hood 10 minutes past cooking completion',
-      body: 'High-heat frying and gas burners emit ultrafine particles and NO2 that linger after turning off the stove. Using back burners under the hood improves capture.',
-      estimatedCostLabel: 'Free',
-      helpfulCount: 51,
-      createdAtIso: '2026-11-15T18:20:00.000Z',
-    },
-  ],
-  challenges: [
-    {
-      id: 'challenge-transit-week',
-      title: '5-Day Low-Emission Commute Shift',
-      description:
-        'Replace solo petrol/diesel commutes with metro, bus, carpooling, cycling (when AQI < 100), or remote work for five workdays.',
-      targetActions: 5,
-      participantsCount: 164,
-      collectiveCompletions: 612,
-      durationLabel: 'Weekly Sprint',
-    },
-    {
-      id: 'challenge-clean-bedroom',
-      title: 'Clean-Air Bedroom Setup',
-      description:
-        'Wet-mop floors, seal window drafts, eliminate indoor incense/candles, and designate one filtered sleeping space for family members.',
-      targetActions: 4,
-      participantsCount: 218,
-      collectiveCompletions: 790,
-      durationLabel: '7-Day Habit',
-    },
-    {
-      id: 'challenge-zero-burn',
-      title: 'Zero Open-Burn & Energy Trim',
-      description:
-        'Commit to zero outdoor leaf/waste burning, lower standby appliance load, and shift high-heat frying under vented hoods.',
-      targetActions: 3,
-      participantsCount: 129,
-      collectiveCompletions: 348,
-      durationLabel: 'Ongoing Winter Pledge',
-    },
-  ],
-  campaigns: [
-    {
-      id: 'campaign-school-idle',
-      title: 'Clean School Gate Zones',
-      focusArea: 'Local Transport & Child Exposure',
-      summary:
-        'Encouraging caregivers and bus operators to turn off idling engines during morning and afternoon school pickup windows.',
-      actionSteps: [
-        'Park 200 meters away from school gates when feasible',
-        'Switch off engine immediately if waiting over 30 seconds',
-        'Check morning AQI before outdoor recess schedules',
-      ],
-    },
-  ],
-};
-
-function readStaticCommunity(): LocalCommunityState {
+function readStaticCommunity(): CommunityStoreData {
   try {
     const raw = localStorage.getItem(LOCAL_COMMUNITY_KEY);
-    if (raw) return JSON.parse(raw) as LocalCommunityState;
+    if (raw) return JSON.parse(raw) as CommunityStoreData;
   } catch {
-    // ignore
+    // ignore storage failures
   }
-  return structuredClone(STATIC_COMMUNITY_SEED);
+  return createDefaultCommunityData(' (Local session mode active without backend persistence.)');
 }
 
-function writeStaticCommunity(state: LocalCommunityState): void {
+function writeStaticCommunity(state: CommunityStoreData): void {
   try {
     localStorage.setItem(LOCAL_COMMUNITY_KEY, JSON.stringify(state));
   } catch {
-    // ignore
+    // ignore storage failures
   }
 }
 
@@ -150,14 +60,11 @@ export async function searchLocationsApi(query: string): Promise<{
 }> {
   try {
     const res = await fetch(`/api/locations/search?q=${encodeURIComponent(query)}`);
-    if (res.ok) {
-      return await parseJsonOrThrow(res);
-    }
-    if (!isBackendUnavailableStatus(res.status)) {
+    if (res.ok || !isBackendUnavailableStatus(res.status)) {
       return await parseJsonOrThrow(res);
     }
   } catch {
-    // Fall back to direct browser Open-Meteo geocoding on static deployments
+    // Fall back to direct Open-Meteo geocoding on static deployments
   }
   return searchOpenMeteoLocations(query);
 }
@@ -173,14 +80,11 @@ export async function fetchAirQualitySnapshotApi(params: {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
     });
-    if (res.ok) {
-      return await parseJsonOrThrow(res);
-    }
-    if (!isBackendUnavailableStatus(res.status)) {
+    if (res.ok || !isBackendUnavailableStatus(res.status)) {
       return await parseJsonOrThrow(res);
     }
   } catch {
-    // Fall back to direct Open-Meteo fetch if backend proxy is unavailable (e.g., static deploy)
+    // Fall back to direct Open-Meteo fetch if backend proxy is unavailable
   }
 
   try {
@@ -233,13 +137,10 @@ export async function askAssistantApi(params: {
   return parseJsonOrThrow(res);
 }
 
-export async function fetchCommunityOverviewApi(): Promise<LocalCommunityState> {
+export async function fetchCommunityOverviewApi(): Promise<CommunityStoreData> {
   try {
     const res = await fetch('/api/community');
-    if (res.ok) {
-      return await parseJsonOrThrow(res);
-    }
-    if (!isBackendUnavailableStatus(res.status)) {
+    if (res.ok || !isBackendUnavailableStatus(res.status)) {
       return await parseJsonOrThrow(res);
     }
   } catch {
@@ -271,9 +172,9 @@ export async function createCommunityTipApi(input: {
   const created: CommunityTip = {
     id: `tip-${Date.now()}`,
     category: input.category,
-    title: input.title.replace(/[<>]/g, '').trim().slice(0, 120),
-    body: input.body.replace(/[<>]/g, '').trim().slice(0, 400),
-    estimatedCostLabel: input.estimatedCostLabel.replace(/[<>]/g, '').trim() || 'Free',
+    title: sanitizePlainText(input.title, 120),
+    body: sanitizePlainText(input.body, 400),
+    estimatedCostLabel: sanitizePlainText(input.estimatedCostLabel, 40) || 'Free',
     helpfulCount: 1,
     createdAtIso: new Date().toISOString(),
   };

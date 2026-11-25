@@ -69,18 +69,22 @@ flowchart TB
     ├── index.css                      # Tailwind v4 setup, fonts, WCAG focus rings, reduced motion
     ├── shared/
     │   ├── types.ts                   # Shared TypeScript interfaces across client & server
-    │   └── aqiUtils.ts                # US EPA AQI bands, alerts, CADR & CO2e range helpers
+    │   ├── aqiUtils.ts                # US EPA AQI bands, alerts, CADR & CO2e range helpers
+    │   ├── openMeteoClient.ts         # Direct Open-Meteo CAMS + Forecast + Geocoding client
+    │   ├── profileConstants.ts        # Canonical commute/lifestyle/budget options & defaults
+    │   ├── communitySeed.ts           # Canonical anonymized community baseline store
+    │   └── validation.ts              # Shared XSS/prompt-injection sanitizers & schema guards
     ├── server/
-    │   ├── middleware/security.ts     # Security headers, sliding-window rate limiter, sanitizers
+    │   ├── middleware/security.ts     # Security headers, bounded rate limiter, JSON syntax guard
     │   ├── repositories/communityRepository.ts # Anonymized community persistence
     │   └── services/
     │       ├── airQualityService.ts   # Open-Meteo integration, TTL caching, explicit fallback
     │       └── aiService.ts           # Server-side @google/genai gemini-4-hydrogen integration
-    ├── context/AirAwareContext.tsx    # Client state, localStorage persistence, action generation
-    ├── services/apiClient.ts          # Typed frontend fetch client
-    ├── components/                    # AppShell, AqiBadge, ResilientImage, LocationSearchWidget
+    ├── context/AirAwareContext.tsx    # Client state, localStorage persistence, AQI-synced actions
+    ├── services/apiClient.ts          # Typed frontend fetch client with static fallback
+    ├── components/                    # AppShell, AqiBadge, HouseholdPreferencesForm, ImpactExplainerCard, RoutinePlanView
     ├── pages/                         # All 10 routed application pages
-    └── tests/                         # Unit, Supertest API integration, & React Testing Library suites
+    └── tests/                         # Unit, AI service, Supertest API, E2E journey & a11y suites
 ```
 
 ---

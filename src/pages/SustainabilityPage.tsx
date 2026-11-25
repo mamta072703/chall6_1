@@ -11,17 +11,8 @@ import {
 import { AppShell } from '../components/AppShell.tsx';
 import { useAirAware } from '../context/AirAwareContext.tsx';
 import { estimateCommuteImpact } from '../shared/aqiUtils.ts';
+import { COMMUTE_LABELS } from '../shared/profileConstants.ts';
 import type { CommuteMethod } from '../shared/types.ts';
-
-const COMMUTE_LABELS: Record<CommuteMethod, string> = {
-  private_car_petrol: 'Solo Petrol/Diesel Car',
-  carpool: 'Carpool (2–3 riders)',
-  electric_vehicle: 'Electric Vehicle',
-  public_transit: 'Public Transit (Metro / Bus)',
-  cycling: 'Cycling',
-  walking: 'Walking',
-  work_from_home: 'Remote / Study from Home',
-};
 
 export const SustainabilityPage: React.FC = () => {
   const { profile, actions } = useAirAware();
@@ -164,7 +155,18 @@ export const SustainabilityPage: React.FC = () => {
                 Completed vs. planned daily actions across protection and emission-reduction categories
               </p>
             </div>
-            <div className="h-64 w-full" role="img" aria-label="Action completion by category bar chart">
+            <p id="sustainability-chart-summary" className="sr-only">
+              Action planner progress by domain:{' '}
+              {categoryBreakdown
+                .map((c) => `${c.category}: ${c.completed} of ${c.total} completed`)
+                .join('; ')}.
+            </p>
+            <div
+              className="h-64 w-full"
+              role="img"
+              aria-label="Action completion by category bar chart"
+              aria-describedby="sustainability-chart-summary"
+            >
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={categoryBreakdown}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />

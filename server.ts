@@ -4,20 +4,20 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   createRateLimiter,
-  isValidCoordinate,
+  jsonSyntaxErrorHandler,
   sanitizeUserText,
   securityHeaders,
 } from './src/server/middleware/security.ts';
 import { CommunityRepository } from './src/server/repositories/communityRepository.ts';
 import { AiConfigurationError, AiService } from './src/server/services/aiService.ts';
 import { AirQualityService } from './src/server/services/airQualityService.ts';
-import type {
-  AirQualitySnapshot,
-  AssistantChatMessage,
-  CommunityTip,
-  LocationSelection,
-  UserProfile,
-} from './src/shared/types.ts';
+import { createDefaultUserProfile } from './src/shared/profileConstants.ts';
+import type { AssistantChatMessage, CommunityTip } from './src/shared/types.ts';
+import {
+  sanitizeAirQualitySnapshot,
+  sanitizeUserProfile,
+  validateLocationSelection,
+} from './src/shared/validation.ts';
 
 dotenv.config();
 
@@ -27,31 +27,6 @@ export interface ServerDependencies {
   communityRepo?: CommunityRepository;
 }
 
-const DEFAULT_PROFILE: UserProfile = {
-  id: 'local-household',
-  location: {
-    name: 'New Delhi',
-    country: 'India',
-    admin1: 'Delhi',
-    latitude: 28.6139,
-    longitude: 77.209,
-  },
-  commuteMethod: 'public_transit',
-  householdSize: 3,
-  lifestyle: 'family_with_children',
-  outdoorActivity: 'moderate',
-  budget: 'low',
-  concerns: ['indoor_air', 'outdoor_smog'],
-  sensitiveGroups: {
-    children: true,
-    elderly: false,
-    pregnant: false,
-    respiratoryOrCardiac: false,
-  },
-  onboardingCompleted: false,
-  updatedAt: new Date().toISOString(),
-};
-
 export function createApp(deps: ServerDependencies = {}): Express {
   const app = express();
   const airQualityService = deps.airQualityService ?? new AirQualityService();
@@ -60,6 +35,7 @@ export function createApp(deps: ServerDependencies = {}): Express {
 
   app.use(securityHeaders);
   app.use(express.json({ limit: '256kb' }));
+  app.use(jsonSyntaxErrorHandler);
 
   const aiRateLimiter = createRateLimiter({
     windowMs: 60_000,
@@ -72,7 +48,6 @@ export function createApp(deps: ServerDependencies = {}): Express {
     keyPrefix: 'community-write',
   });
 
-  // Health check endpoint for deployment readiness
   app.get('/api/health', (_req: Request, res: Response) => {
     res.json({
       status: 'ok',
@@ -84,45 +59,29 @@ export function createApp(deps: ServerDependencies = {}): Express {
     });
   });
 
-  // Location search (Open-Meteo Geocoding + offline fallback directory)
   app.get('/api/locations/search', async (req: Request, res: Response) => {
     const q = sanitizeUserText(req.query.q ?? '', 80);
     const result = await airQualityService.searchLocations(q);
     res.json(result);
   });
 
-  // Live air quality & weather snapshot
   app.post('/api/air-quality/snapshot', async (req: Request, res: Response) => {
     try {
-      const body = req.body as {
-        location?: Partial<LocationSelection>;
-        profile?: UserProfile;
-        forceRefresh?: boolean;
-      };
-
-      const lat = Number(body.location?.latitude);
-      const lon = Number(body.location?.longitude);
-      const name = sanitizeUserText(body.location?.name ?? '', 80);
-
-      if (!name || !isValidCoordinate(lat, lon)) {
+      const body = (req.body ?? {}) as Record<string, unknown>;
+      const location = validateLocationSelection(body.location);
+      if (!location) {
         res.status(400).json({
           error: 'Valid location name, latitude (-90..90), and longitude (-180..180) are required.',
         });
         return;
       }
 
-      const location: LocationSelection = {
-        name,
-        country: sanitizeUserText(body.location?.country ?? '', 80) || undefined,
-        admin1: sanitizeUserText(body.location?.admin1 ?? '', 80) || undefined,
-        latitude: lat,
-        longitude: lon,
-        isManualEntry: Boolean(body.location?.isManualEntry),
-      };
+      const defaultProfile = createDefaultUserProfile();
+      const profile = body.profile ? sanitizeUserProfile(body.profile, defaultProfile) : undefined;
 
       const snapshot = await airQualityService.getSnapshot({
         location,
-        profile: body.profile,
+        profile,
         forceRefresh: Boolean(body.forceRefresh),
       });
       res.json(snapshot);
@@ -132,17 +91,14 @@ export function createApp(deps: ServerDependencies = {}): Express {
     }
   });
 
-  // GenAI Daily Routine Generator
   app.post('/api/ai/routine', aiRateLimiter, async (req: Request, res: Response) => {
     try {
-      const body = req.body as {
-        profile?: UserProfile;
-        snapshot?: AirQualitySnapshot;
-      };
+      const body = (req.body ?? {}) as Record<string, unknown>;
+      const defaultProfile = createDefaultUserProfile();
+      const profile = sanitizeUserProfile(body.profile, defaultProfile);
 
-      const profile = body.profile ?? DEFAULT_PROFILE;
       const snapshot =
-        body.snapshot ??
+        sanitizeAirQualitySnapshot(body.snapshot, profile.location) ??
         (await airQualityService.getSnapshot({
           location: profile.location,
           profile,
@@ -165,33 +121,38 @@ export function createApp(deps: ServerDependencies = {}): Express {
     }
   });
 
-  // GenAI Conversational Assistant
   app.post('/api/ai/chat', aiRateLimiter, async (req: Request, res: Response) => {
     try {
-      const body = req.body as {
-        question?: string;
-        history?: AssistantChatMessage[];
-        profile?: UserProfile;
-        snapshot?: AirQualitySnapshot;
-      };
-
+      const body = (req.body ?? {}) as Record<string, unknown>;
       const question = sanitizeUserText(body.question ?? '', 800);
       if (!question) {
         res.status(400).json({ error: 'Please enter a valid question for AirAware AI.' });
         return;
       }
 
-      const profile = body.profile ?? DEFAULT_PROFILE;
+      const defaultProfile = createDefaultUserProfile();
+      const profile = sanitizeUserProfile(body.profile, defaultProfile);
       const snapshot =
-        body.snapshot ??
+        sanitizeAirQualitySnapshot(body.snapshot, profile.location) ??
         (await airQualityService.getSnapshot({
           location: profile.location,
           profile,
         }));
 
+      const rawHistory = Array.isArray(body.history) ? body.history : [];
+      const sanitizedHistory: AssistantChatMessage[] = rawHistory
+        .slice(-6)
+        .filter((m): m is AssistantChatMessage => Boolean(m && typeof m === 'object'))
+        .map((m) => ({
+          id: sanitizeUserText(m.id, 40) || 'msg',
+          role: m.role === 'assistant' ? 'assistant' : 'user',
+          content: sanitizeUserText(m.content, 500),
+          timestampIso: sanitizeUserText(m.timestampIso, 40),
+        }));
+
       const result = await aiService.askAssistant({
         question,
-        history: Array.isArray(body.history) ? body.history : [],
+        history: sanitizedHistory,
         profile,
         snapshot,
       });
@@ -212,14 +173,13 @@ export function createApp(deps: ServerDependencies = {}): Express {
     }
   });
 
-  // Community privacy-preserving endpoints
   app.get('/api/community', async (_req: Request, res: Response) => {
     const overview = await communityRepo.getOverview();
     res.json(overview);
   });
 
   app.post('/api/community/tips', communityWriteLimiter, async (req: Request, res: Response) => {
-    const body = req.body as Partial<CommunityTip>;
+    const body = (req.body ?? {}) as Partial<CommunityTip>;
     const allowedCategories: CommunityTip['category'][] = [
       'indoor_air',
       'clean_commute',
@@ -270,7 +230,6 @@ export function createApp(deps: ServerDependencies = {}): Express {
     res.json(updated);
   });
 
-  // Return structured JSON 404 for unknown API paths rather than HTML SPA fallback
   app.use('/api', (_req: Request, res: Response) => {
     res.status(404).json({ error: 'API endpoint not found.' });
   });
@@ -306,7 +265,6 @@ async function startServer(): Promise<void> {
   });
 }
 
-// Start HTTP server when executed directly (allows supertest imports without binding a port)
 let isDirectEntry = false;
 if (process.argv[1]) {
   try {

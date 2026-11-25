@@ -139,8 +139,46 @@ describe('AirAware AI Backend API & Security Integration', () => {
     expect(noKeyRes.status).toBe(503);
     expect(noKeyRes.body.code).toBe('AI_KEY_MISSING');
 
+    const routineNoKeyRes = await request(app).post('/api/ai/routine').send({});
+    expect(routineNoKeyRes.status).toBe(503);
+    expect(routineNoKeyRes.body.code).toBe('AI_KEY_MISSING');
+
     if (originalKey !== undefined) {
       process.env.GEMINI_API_KEY = originalKey;
     }
   });
+
+  it('returns JSON 400 on malformed JSON, JSON 404 on unknown API routes, and records challenge progress', async () => {
+    const app = buildTestApp();
+
+    const malformed = await request(app)
+      .post('/api/air-quality/snapshot')
+      .set('Content-Type', 'application/json')
+      .send('{bad json');
+    expect(malformed.status).toBe(400);
+    expect(malformed.body.error).toContain('Malformed JSON');
+
+    const unknown = await request(app).get('/api/does-not-exist');
+    expect(unknown.status).toBe(404);
+    expect(unknown.body.error).toBe('API endpoint not found.');
+
+    const overview = await request(app).get('/api/community');
+    expect(overview.status).toBe(200);
+    const firstChallengeId = overview.body.challenges[0].id;
+    const beforeParticipants = overview.body.challenges[0].participantsCount;
+    const beforeCompletions = overview.body.challenges[0].collectiveCompletions;
+
+    const joinRes = await request(app)
+      .post(`/api/community/challenges/${firstChallengeId}/action`)
+      .send({ joinedNow: true });
+    expect(joinRes.status).toBe(200);
+    expect(joinRes.body.participantsCount).toBe(beforeParticipants + 1);
+
+    const actionRes = await request(app)
+      .post(`/api/community/challenges/${firstChallengeId}/action`)
+      .send({ joinedNow: false });
+    expect(actionRes.status).toBe(200);
+    expect(actionRes.body.collectiveCompletions).toBe(beforeCompletions + 1);
+  });
 });
+

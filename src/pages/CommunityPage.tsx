@@ -326,7 +326,7 @@ export const CommunityPage: React.FC = () => {
               </form>
             )}
 
-            <div className="flex flex-wrap gap-1.5 p-1 bg-slate-100 rounded-lg">
+            <div className="flex flex-wrap gap-1.5 p-1 bg-slate-100 rounded-lg" role="group" aria-label="Filter community tips by category">
               {(
                 [
                   { key: 'all', label: 'All' },
@@ -339,8 +339,9 @@ export const CommunityPage: React.FC = () => {
                 <button
                   key={tab.key}
                   type="button"
+                  aria-pressed={categoryFilter === tab.key}
                   onClick={() => setCategoryFilter(tab.key)}
-                  className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors min-h-[36px] ${
                     categoryFilter === tab.key
                       ? 'bg-white text-slate-900 shadow-sm'
                       : 'text-slate-600 hover:text-slate-900'
@@ -361,7 +362,8 @@ export const CommunityPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => void handleHelpful(tip.id)}
-                      className="inline-flex items-center gap-1 px-2 py-1 rounded border border-slate-200 hover:bg-slate-50 text-slate-700 tabular-nums"
+                      aria-label={`Mark tip "${tip.title}" helpful (${tip.helpfulCount} helpful votes)`}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded border border-slate-200 hover:bg-slate-50 text-slate-700 tabular-nums min-h-[36px]"
                     >
                       <ThumbsUp className="w-3 h-3" aria-hidden="true" />
                       <span>Helpful ({tip.helpfulCount})</span>

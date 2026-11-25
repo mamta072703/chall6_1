@@ -2,9 +2,11 @@ import { AlertCircle, Bot, Send, Sparkles, Trash2 } from 'lucide-react';
 import React, { useState } from 'react';
 import { AppShell } from '../components/AppShell.tsx';
 import { AqiBadge } from '../components/AqiBadge.tsx';
+import { ImpactExplainerCard } from '../components/ImpactExplainerCard.tsx';
+import { RoutinePlanView } from '../components/RoutinePlanView.tsx';
 import { useAirAware } from '../context/AirAwareContext.tsx';
 import { askAssistantApi, generateDailyRoutineApi } from '../services/apiClient.ts';
-import type { AssistantChatMessage, EnvironmentalImpactDetail } from '../shared/types.ts';
+import type { AssistantChatMessage } from '../shared/types.ts';
 
 const STARTER_QUESTIONS = [
   'Is it safe for my family to go outside today, and what should we adjust in our daily routine?',
@@ -12,38 +14,6 @@ const STARTER_QUESTIONS = [
   'What is the cleanest way to commute today given current winter smog?',
   'What precautions should children and older adults follow during today’s pollution levels?',
 ];
-
-const ImpactExplainerCard: React.FC<{ impact: EnvironmentalImpactDetail }> = ({ impact }) => (
-  <div className="mt-3 p-4 rounded-lg bg-slate-50 border border-slate-200 space-y-2.5 text-xs">
-    <div className="flex flex-wrap items-center justify-between gap-2">
-      <p className="font-semibold text-slate-900">{impact.actionTitle}</p>
-      <span className="text-slate-600">
-        {impact.difficulty} · {impact.estimatedCost}
-      </span>
-    </div>
-    <dl className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-slate-700">
-      <div>
-        <dt className="font-medium text-slate-500">Why it matters</dt>
-        <dd className="mt-0.5">{impact.whyItMatters}</dd>
-      </div>
-      <div>
-        <dt className="font-medium text-slate-500">Pollution source addressed</dt>
-        <dd className="mt-0.5">{impact.pollutionSourceAddressed}</dd>
-      </div>
-      <div>
-        <dt className="font-medium text-slate-500">Potential environmental benefit</dt>
-        <dd className="mt-0.5">{impact.potentialEnvironmentalBenefit}</dd>
-      </div>
-      <div>
-        <dt className="font-medium text-slate-500">Estimated impact &amp; uncertainty</dt>
-        <dd className="mt-0.5">
-          <span className="font-medium text-slate-900">{impact.estimatedImpactRange}</span> —{' '}
-          {impact.assumptionsAndUncertainty}
-        </dd>
-      </div>
-    </dl>
-  </div>
-);
 
 export const AssistantPage: React.FC = () => {
   const {
@@ -122,7 +92,6 @@ export const AssistantPage: React.FC = () => {
       subtitle="Context-aware guidance grounded in live AQI, household needs, budget, and transparent impact assumptions"
     >
       <div className="space-y-5">
-        {/* Context Bar & Mode Switcher */}
         <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
             {snapshot && (
@@ -134,12 +103,14 @@ export const AssistantPage: React.FC = () => {
             </span>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0" role="tablist" aria-label="Assistant modes">
             <div className="inline-flex p-1 bg-slate-100 rounded-lg">
               <button
                 type="button"
+                role="tab"
+                aria-selected={activeTab === 'chat'}
                 onClick={() => setActiveTab('chat')}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap min-h-[36px] ${
                   activeTab === 'chat' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'
                 }`}
               >
@@ -147,8 +118,10 @@ export const AssistantPage: React.FC = () => {
               </button>
               <button
                 type="button"
+                role="tab"
+                aria-selected={activeTab === 'routine'}
                 onClick={() => setActiveTab('routine')}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap min-h-[36px] ${
                   activeTab === 'routine' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'
                 }`}
               >
@@ -173,7 +146,6 @@ export const AssistantPage: React.FC = () => {
 
         {activeTab === 'chat' ? (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Conversation Panel */}
             <section className="lg:col-span-8 bg-white border border-slate-200 rounded-xl flex flex-col min-h-[520px]">
               <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -242,7 +214,7 @@ export const AssistantPage: React.FC = () => {
                                 key={sugg}
                                 type="button"
                                 onClick={() => void handleSendQuestion(sugg)}
-                                className="px-2.5 py-1 text-xs rounded-md border border-slate-200 bg-slate-50 hover:bg-teal-50 text-slate-700"
+                                className="px-2.5 py-1.5 text-xs rounded-md border border-slate-200 bg-slate-50 hover:bg-teal-50 text-slate-700"
                               >
                                 {sugg}
                               </button>
@@ -289,7 +261,6 @@ export const AssistantPage: React.FC = () => {
               </form>
             </section>
 
-            {/* Quick Routine Launcher Side Card */}
             <aside className="lg:col-span-4 space-y-4">
               <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3">
                 <h2 className="text-base font-display font-semibold text-slate-900">
@@ -319,7 +290,6 @@ export const AssistantPage: React.FC = () => {
             </aside>
           </div>
         ) : (
-          /* Daily Routine Generator Tab */
           <section className="space-y-5">
             <div className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
@@ -342,61 +312,7 @@ export const AssistantPage: React.FC = () => {
             </div>
 
             {routinePlan ? (
-              <div className="space-y-6">
-                <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3">
-                  <h3 className="text-lg font-display font-semibold text-slate-900">
-                    {routinePlan.headline}
-                  </h3>
-                  <p className="text-sm text-slate-700">{routinePlan.isSafeOutsideSummary}</p>
-                  <div className="p-3.5 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-950">
-                    <strong>Sensitive Group Precautions:</strong> {routinePlan.sensitiveGroupPrecautions}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {routinePlan.blocks.map((block) => (
-                    <div
-                      key={block.period}
-                      className="bg-white border border-slate-200 rounded-xl p-5 space-y-3"
-                    >
-                      <div>
-                        <p className="text-xs font-medium text-teal-800">{block.period}</p>
-                        <h4 className="text-sm font-semibold text-slate-900 mt-0.5">
-                          {block.recommendedWindow}
-                        </h4>
-                      </div>
-                      <p className="text-xs text-slate-700">{block.summary}</p>
-                      <div className="space-y-2 pt-2 border-t border-slate-100 text-xs text-slate-600">
-                        <p>
-                          <strong className="text-slate-800">Outdoor:</strong> {block.outdoorSafety}
-                        </p>
-                        <p>
-                          <strong className="text-slate-800">Indoor:</strong> {block.indoorAction}
-                        </p>
-                        <p>
-                          <strong className="text-slate-800">Commute / Energy:</strong>{' '}
-                          {block.commuteOrEnergyTip}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="space-y-3">
-                  <h3 className="text-base font-display font-semibold text-slate-900">
-                    Environmental Impact Breakdown
-                  </h3>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {routinePlan.impactBreakdowns.map((item) => (
-                      <div key={item.actionTitle} className="bg-white border border-slate-200 rounded-xl p-4">
-                        <ImpactExplainerCard impact={item} />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <p className="text-xs text-slate-500">{routinePlan.disclaimer}</p>
-              </div>
+              <RoutinePlanView routinePlan={routinePlan} />
             ) : (
               <div className="bg-white border border-slate-200 rounded-xl p-8 text-center space-y-3">
                 <p className="text-sm text-slate-700">
@@ -406,7 +322,7 @@ export const AssistantPage: React.FC = () => {
                   type="button"
                   onClick={() => void handleGenerateRoutine()}
                   disabled={generatingRoutine || !snapshot}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-teal-700 text-white text-xs font-medium hover:bg-teal-800"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-teal-700 text-white text-xs font-medium hover:bg-teal-800 min-h-[44px]"
                 >
                   <span>Create Personalized Daily Routine</span>
                 </button>

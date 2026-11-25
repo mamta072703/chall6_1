@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { fetchAirQualitySnapshotApi } from '../services/apiClient.ts';
+import { createDefaultUserProfile } from '../shared/profileConstants.ts';
 import type {
   ActionPlannerItem,
   AirQualitySnapshot,
@@ -8,6 +9,7 @@ import type {
   LocationSelection,
   UserProfile,
 } from '../shared/types.ts';
+import { sanitizeUserProfile } from '../shared/validation.ts';
 
 const PROFILE_STORAGE_KEY = 'airaware_user_profile_v1';
 const ACTIONS_STORAGE_KEY = 'airaware_action_planner_v1';
@@ -15,30 +17,7 @@ const ROUTINE_STORAGE_KEY = 'airaware_daily_routine_v1';
 const CHAT_STORAGE_KEY = 'airaware_chat_history_v1';
 const JOINED_CHALLENGES_KEY = 'airaware_joined_challenges_v1';
 
-export const DEFAULT_USER_PROFILE: UserProfile = {
-  id: 'local-household',
-  location: {
-    name: 'New Delhi',
-    country: 'India',
-    admin1: 'Delhi',
-    latitude: 28.6139,
-    longitude: 77.209,
-  },
-  commuteMethod: 'public_transit',
-  householdSize: 3,
-  lifestyle: 'family_with_children',
-  outdoorActivity: 'moderate',
-  budget: 'low',
-  concerns: ['indoor_air', 'outdoor_smog'],
-  sensitiveGroups: {
-    children: true,
-    elderly: false,
-    pregnant: false,
-    respiratoryOrCardiac: false,
-  },
-  onboardingCompleted: false,
-  updatedAt: new Date().toISOString(),
-};
+export const DEFAULT_USER_PROFILE: UserProfile = createDefaultUserProfile();
 
 function todayDateKey(): string {
   return new Date().toISOString().slice(0, 10);
@@ -57,8 +36,8 @@ export function buildPersonalizedActions(profile: UserProfile, aqi: number): Act
     {
       id: 'act-morning-seal',
       title: isHighSmog
-        ? 'Keep bedroom & living room windows sealed during early-morning inversion'
-        : 'Open cross-ventilation windows for 15 minutes while outdoor AQI is low',
+        ? `Keep ${profile.location.name} bedroom & living room windows sealed during early-morning inversion`
+        : `Open cross-ventilation windows for 15 minutes while ${profile.location.name} outdoor AQI is low`,
       period: 'Morning',
       category: 'indoor_air',
       priority: isHighSmog || hasSensitive ? 'high' : 'medium',
@@ -82,7 +61,8 @@ export function buildPersonalizedActions(profile: UserProfile, aqi: number): Act
       period: 'Morning',
       category: 'commute',
       priority: 'high',
-      estimatedCost: profile.commuteMethod === 'private_car_petrol' ? 'Saves ~$3–$6 fuel' : '$1–$2 mask reuse',
+      estimatedCost:
+        profile.commuteMethod === 'private_car_petrol' ? 'Saves ~$3–$6 fuel' : '$1–$2 mask reuse',
       environmentalBenefit:
         'Reduces cold-start tailpipe NO2/PM2.5 emissions and lowers personal inhaled traffic exhaust.',
       assumptionsNote:
@@ -153,6 +133,24 @@ export function buildPersonalizedActions(profile: UserProfile, aqi: number): Act
   ];
 }
 
+function mergeActionsWithCompletionState(
+  existing: ActionPlannerItem[],
+  regenerated: ActionPlannerItem[]
+): ActionPlannerItem[] {
+  const existingById = new Map(existing.map((item) => [item.id, item]));
+  const customOnes = existing.filter((item) => item.isCustom);
+  const synced = regenerated.map((item) => {
+    const prev = existingById.get(item.id);
+    if (!prev) return item;
+    return {
+      ...item,
+      completed: prev.completed,
+      completedDates: prev.completedDates,
+    };
+  });
+  return [...customOnes, ...synced];
+}
+
 interface AirAwareContextValue {
   profile: UserProfile;
   snapshot: AirQualitySnapshot | null;
@@ -187,9 +185,10 @@ function safeReadStorage<T>(key: string, fallback: T): T {
 }
 
 export const AirAwareProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [profile, setProfile] = useState<UserProfile>(() =>
-    safeReadStorage<UserProfile>(PROFILE_STORAGE_KEY, DEFAULT_USER_PROFILE)
-  );
+  const [profile, setProfile] = useState<UserProfile>(() => {
+    const raw = safeReadStorage<unknown>(PROFILE_STORAGE_KEY, null);
+    return sanitizeUserProfile(raw, DEFAULT_USER_PROFILE);
+  });
   const [snapshot, setSnapshot] = useState<AirQualitySnapshot | null>(null);
   const [loadingSnapshot, setLoadingSnapshot] = useState<boolean>(true);
   const [snapshotError, setSnapshotError] = useState<string | null>(null);
@@ -262,6 +261,13 @@ export const AirAwareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           forceRefresh: force,
         });
         setSnapshot(nextSnapshot);
+        // Automatically align recommended daily actions with new location/AQI while preserving completions
+        setActions((prev) =>
+          mergeActionsWithCompletionState(
+            prev,
+            buildPersonalizedActions(profile, nextSnapshot.currentAqi)
+          )
+        );
       } catch (err) {
         setSnapshotError(
           err instanceof Error ? err.message : 'Unable to fetch air quality readings right now.'
@@ -278,11 +284,7 @@ export const AirAwareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [refreshSnapshot]);
 
   const updateProfile = useCallback((next: UserProfile) => {
-    const stamped: UserProfile = {
-      ...next,
-      updatedAt: new Date().toISOString(),
-    };
-    setProfile(stamped);
+    setProfile(sanitizeUserProfile(next, DEFAULT_USER_PROFILE));
   }, []);
 
   const setLocation = useCallback((loc: LocationSelection) => {
@@ -328,10 +330,7 @@ export const AirAwareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const regenerateActionsForCurrentAqi = useCallback(() => {
     const aqi = snapshot?.currentAqi ?? 140;
     const generated = buildPersonalizedActions(profile, aqi);
-    setActions((prev) => {
-      const customOnes = prev.filter((item) => item.isCustom);
-      return [...customOnes, ...generated];
-    });
+    setActions((prev) => mergeActionsWithCompletionState(prev, generated));
   }, [profile, snapshot]);
 
   const setRoutinePlan = useCallback((plan: DailyRoutinePlan | null) => {
@@ -352,8 +351,9 @@ export const AirAwareProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     } catch {
       // ignore
     }
-    setProfile(DEFAULT_USER_PROFILE);
-    setActions(buildPersonalizedActions(DEFAULT_USER_PROFILE, 140));
+    const resetProfile = createDefaultUserProfile();
+    setProfile(resetProfile);
+    setActions(buildPersonalizedActions(resetProfile, 140));
     setRoutinePlanState(null);
     setChatHistory([]);
     setJoinedChallenges([]);

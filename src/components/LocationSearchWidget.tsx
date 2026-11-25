@@ -153,8 +153,9 @@ export const LocationSearchWidget: React.FC<LocationSearchWidgetProps> = ({
       )}
 
       {showManual && (
-        <form
-          onSubmit={handleManualSubmit}
+        <div
+          role="region"
+          aria-label="Manual Location Entry"
           className="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-3"
         >
           <p className="text-xs font-medium text-slate-700">
@@ -207,12 +208,13 @@ export const LocationSearchWidget: React.FC<LocationSearchWidgetProps> = ({
             </p>
           )}
           <button
-            type="submit"
-            className="px-4 py-2 text-xs font-medium bg-teal-700 text-white rounded-lg hover:bg-teal-800"
+            type="button"
+            onClick={handleManualSubmit}
+            className="px-4 py-2 text-xs font-medium bg-teal-700 text-white rounded-lg hover:bg-teal-800 min-h-[36px]"
           >
             Apply Manual Location
           </button>
-        </form>
+        </div>
       )}
     </div>
   );

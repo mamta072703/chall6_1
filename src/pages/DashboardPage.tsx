@@ -211,7 +211,23 @@ export const DashboardPage: React.FC = () => {
                 </Link>
               </div>
 
-              <div className="h-64 w-full" role="img" aria-label="24 hour US AQI trend chart">
+              <p id="dashboard-aqi-chart-summary" className="sr-only">
+                {(() => {
+                  const vals = snapshot.hourlyTrend
+                    .slice(-24)
+                    .map((p) => p.usAqi)
+                    .filter((v): v is number => typeof v === 'number');
+                  if (vals.length === 0) return 'No hourly AQI points available.';
+                  return `24-hour US AQI spans from a low of ${Math.min(...vals)} to a peak of ${Math.max(...vals)}, currently ${snapshot.currentAqi}.`;
+                })()}
+              </p>
+
+              <div
+                className="h-64 w-full"
+                role="img"
+                aria-label="24 hour US AQI trend chart"
+                aria-describedby="dashboard-aqi-chart-summary"
+              >
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={snapshot.hourlyTrend.slice(-24)}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />

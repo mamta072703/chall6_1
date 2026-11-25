@@ -13,7 +13,7 @@ import {
   Wind,
   X,
 } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useAirAware } from '../context/AirAwareContext.tsx';
 
@@ -42,6 +42,19 @@ export const AppShell: React.FC<{
   const { profile, snapshot, loadingSnapshot, refreshSnapshot } = useAirAware();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const menuTriggerRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setMobileMenuOpen(false);
+        menuTriggerRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [mobileMenuOpen]);
 
   return (
     <div className="min-h-screen flex bg-slate-50 text-slate-900">
@@ -51,6 +64,10 @@ export const AppShell: React.FC<{
       >
         Skip to main content
       </a>
+
+      <div className="sr-only" aria-live="polite">
+        {title} page loaded for {profile.location.name}
+      </div>
 
       {/* Desktop Sidebar (240px deep navy) */}
       <aside
@@ -67,7 +84,7 @@ export const AppShell: React.FC<{
           </Link>
         </div>
 
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto" aria-label="Workspace sections">
           {WORKSPACE_NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             return (
@@ -75,7 +92,7 @@ export const AppShell: React.FC<{
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap min-h-[40px] ${
                     isActive
                       ? 'bg-teal-700 text-white'
                       : 'text-slate-300 hover:bg-slate-800 hover:text-white'
@@ -107,7 +124,12 @@ export const AppShell: React.FC<{
 
       {/* Mobile drawer navigation */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden flex">
+        <div
+          className="fixed inset-0 z-40 lg:hidden flex"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Mobile workspace navigation"
+        >
           <div
             className="fixed inset-0 bg-slate-900/60"
             onClick={() => setMobileMenuOpen(false)}
@@ -125,9 +147,12 @@ export const AppShell: React.FC<{
               </Link>
               <button
                 type="button"
-                onClick={() => setMobileMenuOpen(false)}
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  menuTriggerRef.current?.focus();
+                }}
                 aria-label="Close navigation menu"
-                className="p-2 text-slate-300 hover:text-white rounded-md"
+                className="p-2 text-slate-300 hover:text-white rounded-md min-h-[44px] min-w-[44px] flex items-center justify-center"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -141,7 +166,7 @@ export const AppShell: React.FC<{
                     to={item.to}
                     onClick={() => setMobileMenuOpen(false)}
                     className={({ isActive }) =>
-                      `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+                      `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap min-h-[44px] ${
                         isActive
                           ? 'bg-teal-700 text-white'
                           : 'text-slate-300 hover:bg-slate-800 hover:text-white'
@@ -160,14 +185,15 @@ export const AppShell: React.FC<{
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Top Bar Contract: Breadcrumb/Title on left, 1-2 clean actions on right */}
         <header className="bg-white border-b border-slate-200 px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between gap-4 sticky top-0 z-20">
           <div className="flex items-center gap-3 min-w-0">
             <button
+              ref={menuTriggerRef}
               type="button"
               onClick={() => setMobileMenuOpen(true)}
               aria-label="Open navigation menu"
-              className="lg:hidden p-2 -ml-1 text-slate-700 hover:bg-slate-100 rounded-md min-h-[40px] min-w-[40px] flex items-center justify-center"
+              aria-expanded={mobileMenuOpen}
+              className="lg:hidden p-2 -ml-1 text-slate-700 hover:bg-slate-100 rounded-md min-h-[44px] min-w-[44px] flex items-center justify-center"
             >
               <Menu className="w-5 h-5" />
             </button>
@@ -193,6 +219,7 @@ export const AppShell: React.FC<{
               type="button"
               onClick={() => void refreshSnapshot(true)}
               disabled={loadingSnapshot}
+              aria-busy={loadingSnapshot}
               className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs font-medium hover:bg-slate-50 disabled:opacity-60 transition-colors whitespace-nowrap shrink-0 min-h-[40px]"
             >
               <RefreshCw
@@ -214,7 +241,7 @@ export const AppShell: React.FC<{
           </div>
         </header>
 
-        <main id="main-content" className="flex-1 px-4 sm:px-6 lg:px-8 py-6 max-w-7xl w-full mx-auto">
+        <main id="main-content" tabIndex={-1} className="flex-1 px-4 sm:px-6 lg:px-8 py-6 max-w-7xl w-full mx-auto">
           {children}
         </main>
 
