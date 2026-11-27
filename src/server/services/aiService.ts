@@ -51,6 +51,9 @@ function summarizeHistoricalTrend(snapshot: AirQualitySnapshot): string {
   return `Historical 24h Window: min ${minPt.usAqi} US AQI at ${minPt.label}, peak ${maxPt.usAqi} US AQI at ${maxPt.label} (${recent.length} hourly points).`;
 }
 
+/**
+ * Builds a structured, provenance-tagged environmental and household prompt summary.
+ */
 export function buildContextSummary(profile: UserProfile, snapshot: AirQualitySnapshot): string {
   const sensitiveList: string[] = [];
   if (profile.sensitiveGroups.children) sensitiveList.push('children');
@@ -145,6 +148,34 @@ function sanitizeRoutineBlocks(rawBlocks: unknown): RoutineTimeBlock[] {
   });
 }
 
+const IMPACT_DETAIL_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    actionTitle: { type: Type.STRING },
+    whyItMatters: { type: Type.STRING },
+    pollutionSourceAddressed: { type: Type.STRING },
+    potentialEnvironmentalBenefit: { type: Type.STRING },
+    estimatedImpactRange: { type: Type.STRING },
+    assumptionsAndUncertainty: { type: Type.STRING },
+    difficulty: { type: Type.STRING },
+    estimatedCost: { type: Type.STRING },
+  },
+  required: [
+    'actionTitle',
+    'whyItMatters',
+    'pollutionSourceAddressed',
+    'potentialEnvironmentalBenefit',
+    'estimatedImpactRange',
+    'assumptionsAndUncertainty',
+    'difficulty',
+    'estimatedCost',
+  ],
+};
+
+/**
+ * Server-side GenAI advisor wrapping Google Gemini with strict safety policies,
+ * JSON schema enforcement, and prompt-injection/XSS output sanitization.
+ */
 export class AiService {
   private readonly clientFactory: () => GeminiClientLike | null;
 
@@ -152,17 +183,34 @@ export class AiService {
     this.clientFactory = clientFactory;
   }
 
+  private requireClient(featureDescription: string): GeminiClientLike {
+    const ai = this.clientFactory();
+    if (!ai) {
+      throw new AiConfigurationError(
+        `GEMINI_API_KEY is not configured on the server. Add your Gemini API key in Settings > Secrets to enable ${featureDescription}.`
+      );
+    }
+    return ai;
+  }
+
+  private parseJsonResponse(rawText: string | undefined, label: string): Record<string, unknown> {
+    const trimmed = rawText?.trim();
+    if (!trimmed) {
+      throw new Error('Empty response returned from Gemini API.');
+    }
+    try {
+      return JSON.parse(trimmed) as Record<string, unknown>;
+    } catch {
+      throw new Error(`AI service returned malformed JSON for ${label}.`);
+    }
+  }
+
+  /** Generates a personalized Morning/Afternoon/Evening clean-air routine and impact cards. */
   async generateDailyRoutine(params: {
     profile: UserProfile;
     snapshot: AirQualitySnapshot;
   }): Promise<DailyRoutinePlan> {
-    const ai = this.clientFactory();
-    if (!ai) {
-      throw new AiConfigurationError(
-        'GEMINI_API_KEY is not configured on the server. Add your Gemini API key in Settings > Secrets to enable personalized GenAI routines.'
-      );
-    }
-
+    const ai = this.requireClient('personalized GenAI routines');
     const context = buildContextSummary(params.profile, params.snapshot);
     const prompt = `Generate a practical, personalized daily routine and environmental impact breakdown for today based strictly on this environmental and household context:\n\n${context}`;
 
@@ -203,29 +251,7 @@ export class AiService {
             },
             impactBreakdowns: {
               type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  actionTitle: { type: Type.STRING },
-                  whyItMatters: { type: Type.STRING },
-                  pollutionSourceAddressed: { type: Type.STRING },
-                  potentialEnvironmentalBenefit: { type: Type.STRING },
-                  estimatedImpactRange: { type: Type.STRING },
-                  assumptionsAndUncertainty: { type: Type.STRING },
-                  difficulty: { type: Type.STRING },
-                  estimatedCost: { type: Type.STRING },
-                },
-                required: [
-                  'actionTitle',
-                  'whyItMatters',
-                  'pollutionSourceAddressed',
-                  'potentialEnvironmentalBenefit',
-                  'estimatedImpactRange',
-                  'assumptionsAndUncertainty',
-                  'difficulty',
-                  'estimatedCost',
-                ],
-              },
+              items: IMPACT_DETAIL_SCHEMA,
             },
           },
           required: [
@@ -240,18 +266,7 @@ export class AiService {
       },
     });
 
-    const rawText = response.text?.trim();
-    if (!rawText) {
-      throw new Error('Empty response returned from Gemini API.');
-    }
-
-    let parsed: Record<string, unknown>;
-    try {
-      parsed = JSON.parse(rawText) as Record<string, unknown>;
-    } catch {
-      throw new Error('AI service returned malformed JSON for daily routine.');
-    }
-
+    const parsed = this.parseJsonResponse(response.text, 'daily routine');
     const blocks = sanitizeRoutineBlocks(parsed.blocks);
     const rawImpacts = Array.isArray(parsed.impactBreakdowns) ? parsed.impactBreakdowns : [];
 
@@ -275,6 +290,7 @@ export class AiService {
     };
   }
 
+  /** Answers a user environmental question with live context, impact card, and follow-ups. */
   async askAssistant(params: {
     question: string;
     history: AssistantChatMessage[];
@@ -285,13 +301,7 @@ export class AiService {
     impactCard: EnvironmentalImpactDetail;
     followUpSuggestions: string[];
   }> {
-    const ai = this.clientFactory();
-    if (!ai) {
-      throw new AiConfigurationError(
-        'GEMINI_API_KEY is not configured on the server. Add your Gemini API key in Settings > Secrets to enable the AI Assistant.'
-      );
-    }
-
+    const ai = this.requireClient('the AI Assistant');
     const sanitizedQuestion = sanitizePromptInput(params.question, 800);
     if (!sanitizedQuestion) {
       throw new Error('Question cannot be empty.');
@@ -318,29 +328,7 @@ export class AiService {
           type: Type.OBJECT,
           properties: {
             answer: { type: Type.STRING },
-            impactCard: {
-              type: Type.OBJECT,
-              properties: {
-                actionTitle: { type: Type.STRING },
-                whyItMatters: { type: Type.STRING },
-                pollutionSourceAddressed: { type: Type.STRING },
-                potentialEnvironmentalBenefit: { type: Type.STRING },
-                estimatedImpactRange: { type: Type.STRING },
-                assumptionsAndUncertainty: { type: Type.STRING },
-                difficulty: { type: Type.STRING },
-                estimatedCost: { type: Type.STRING },
-              },
-              required: [
-                'actionTitle',
-                'whyItMatters',
-                'pollutionSourceAddressed',
-                'potentialEnvironmentalBenefit',
-                'estimatedImpactRange',
-                'assumptionsAndUncertainty',
-                'difficulty',
-                'estimatedCost',
-              ],
-            },
+            impactCard: IMPACT_DETAIL_SCHEMA,
             followUpSuggestions: {
               type: Type.ARRAY,
               items: { type: Type.STRING },
@@ -351,18 +339,7 @@ export class AiService {
       },
     });
 
-    const rawText = response.text?.trim();
-    if (!rawText) {
-      throw new Error('Empty response returned from Gemini API.');
-    }
-
-    let parsed: Record<string, unknown>;
-    try {
-      parsed = JSON.parse(rawText) as Record<string, unknown>;
-    } catch {
-      throw new Error('AI service returned malformed JSON for assistant response.');
-    }
-
+    const parsed = this.parseJsonResponse(response.text, 'assistant response');
     const answer = sanitizePlainText(parsed.answer, 2400);
     if (!answer) {
       throw new Error('AI service returned an empty answer.');

@@ -168,9 +168,14 @@ export async function createCommunityTipApi(input: {
     // static fallback
   }
 
+  const uniqueSuffix =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID().slice(0, 8)
+      : Math.random().toString(36).slice(2, 10);
+
   const state = readStaticCommunity();
   const created: CommunityTip = {
-    id: `tip-${Date.now()}`,
+    id: `tip-${Date.now()}-${uniqueSuffix}`,
     category: input.category,
     title: sanitizePlainText(input.title, 120),
     body: sanitizePlainText(input.body, 400),

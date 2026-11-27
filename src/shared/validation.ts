@@ -66,13 +66,24 @@ export function isValidCoordinate(lat: unknown, lon: unknown): boolean {
   return Number.isFinite(lat) && Number.isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
 }
 
+function parseCoordinateInput(raw: unknown): number | null {
+  if (typeof raw === 'number') return Number.isFinite(raw) ? raw : null;
+  if (typeof raw === 'string' && raw.trim() !== '') {
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
 export function validateLocationSelection(raw: unknown): LocationSelection | null {
   if (!raw || typeof raw !== 'object') return null;
   const obj = raw as Record<string, unknown>;
   const name = sanitizePlainText(obj.name, 80);
-  const latitude = Number(obj.latitude);
-  const longitude = Number(obj.longitude);
-  if (!name || !isValidCoordinate(latitude, longitude)) return null;
+  const latitude = parseCoordinateInput(obj.latitude);
+  const longitude = parseCoordinateInput(obj.longitude);
+  if (!name || latitude === null || longitude === null || !isValidCoordinate(latitude, longitude)) {
+    return null;
+  }
 
   return {
     name,

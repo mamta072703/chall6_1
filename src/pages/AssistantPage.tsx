@@ -15,6 +15,14 @@ const STARTER_QUESTIONS = [
   'What precautions should children and older adults follow during today’s pollution levels?',
 ];
 
+function createClientMessageId(role: 'user' | 'assistant'): string {
+  const suffix =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID().slice(0, 8)
+      : Math.random().toString(36).slice(2, 10);
+  return `${role}-${Date.now()}-${suffix}`;
+}
+
 export const AssistantPage: React.FC = () => {
   const {
     profile,
@@ -37,7 +45,7 @@ export const AssistantPage: React.FC = () => {
 
     setAiError(null);
     const userMsg: AssistantChatMessage = {
-      id: `user-${Date.now()}`,
+      id: createClientMessageId('user'),
       role: 'user',
       content: query,
       timestampIso: new Date().toISOString(),
@@ -56,7 +64,7 @@ export const AssistantPage: React.FC = () => {
       });
 
       const assistantMsg: AssistantChatMessage = {
-        id: `assistant-${Date.now()}`,
+        id: createClientMessageId('assistant'),
         role: 'assistant',
         content: res.answer,
         timestampIso: new Date().toISOString(),
@@ -106,9 +114,11 @@ export const AssistantPage: React.FC = () => {
           <div className="flex items-center gap-2 shrink-0" role="tablist" aria-label="Assistant modes">
             <div className="inline-flex p-1 bg-slate-100 rounded-lg">
               <button
+                id="assistant-tab-chat"
                 type="button"
                 role="tab"
                 aria-selected={activeTab === 'chat'}
+                aria-controls="assistant-panel-chat"
                 onClick={() => setActiveTab('chat')}
                 className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap min-h-[36px] ${
                   activeTab === 'chat' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'
@@ -117,9 +127,11 @@ export const AssistantPage: React.FC = () => {
                 Conversational Q&amp;A
               </button>
               <button
+                id="assistant-tab-routine"
                 type="button"
                 role="tab"
                 aria-selected={activeTab === 'routine'}
+                aria-controls="assistant-panel-routine"
                 onClick={() => setActiveTab('routine')}
                 className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap min-h-[36px] ${
                   activeTab === 'routine' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600'
@@ -145,7 +157,12 @@ export const AssistantPage: React.FC = () => {
         )}
 
         {activeTab === 'chat' ? (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div
+            id="assistant-panel-chat"
+            role="tabpanel"
+            aria-labelledby="assistant-tab-chat"
+            className="grid grid-cols-1 lg:grid-cols-12 gap-6"
+          >
             <section className="lg:col-span-8 bg-white border border-slate-200 rounded-xl flex flex-col min-h-[520px]">
               <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -290,7 +307,12 @@ export const AssistantPage: React.FC = () => {
             </aside>
           </div>
         ) : (
-          <section className="space-y-5">
+          <section
+            id="assistant-panel-routine"
+            role="tabpanel"
+            aria-labelledby="assistant-tab-routine"
+            className="space-y-5"
+          >
             <div className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h2 className="text-base font-display font-semibold text-slate-900">

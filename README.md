@@ -70,19 +70,21 @@ flowchart TB
     ├── shared/
     │   ├── types.ts                   # Shared TypeScript interfaces across client & server
     │   ├── aqiUtils.ts                # US EPA AQI bands, alerts, CADR & CO2e range helpers
+    │   ├── actionGenerator.ts         # Personalized AQI-calibrated household action builder & sync
     │   ├── openMeteoClient.ts         # Direct Open-Meteo CAMS + Forecast + Geocoding client
     │   ├── profileConstants.ts        # Canonical commute/lifestyle/budget options & defaults
     │   ├── communitySeed.ts           # Canonical anonymized community baseline store
     │   └── validation.ts              # Shared XSS/prompt-injection sanitizers & schema guards
     ├── server/
-    │   ├── middleware/security.ts     # Security headers, bounded rate limiter, JSON syntax guard
+    │   ├── middleware/security.ts     # Security headers, bounded rate limiter, JSON & error handlers
     │   ├── repositories/communityRepository.ts # Anonymized community persistence
+    │   ├── routes/apiRoutes.ts        # Modular Express API router & request validation
     │   └── services/
-    │       ├── airQualityService.ts   # Open-Meteo integration, TTL caching, explicit fallback
+    │       ├── airQualityService.ts   # Open-Meteo integration, bounded TTL cache, fallback
     │       └── aiService.ts           # Server-side @google/genai gemini-4-hydrogen integration
     ├── context/AirAwareContext.tsx    # Client state, localStorage persistence, AQI-synced actions
     ├── services/apiClient.ts          # Typed frontend fetch client with static fallback
-    ├── components/                    # AppShell, AqiBadge, HouseholdPreferencesForm, ImpactExplainerCard, RoutinePlanView
+    ├── components/                    # AppShell, AqiBadge, CommunityTipForm, DashboardMetricsAndAlerts, HouseholdPreferencesForm, ImpactExplainerCard, RoutinePlanView
     ├── pages/                         # All 10 routed application pages
     └── tests/                         # Unit, AI service, Supertest API, E2E journey & a11y suites
 ```

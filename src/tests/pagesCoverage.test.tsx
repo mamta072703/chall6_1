@@ -217,6 +217,7 @@ describe('Core Workspace Pages Coverage', () => {
       expect(screen.getByText(/Low-Exposure Winter Smog Schedule/i)).toBeInTheDocument();
     });
     expect(apiClient.generateDailyRoutineApi).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'assistant-tab-routine');
   });
 
   it('updates SustainabilityPage commute estimator ranges and renders CommunityPage tips', async () => {
@@ -250,6 +251,16 @@ describe('Core Workspace Pages Coverage', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Use foam tape on bedroom window tracks/i)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Mark tip "Damp towel under leaky door" helpful/i }));
+    await waitFor(() => {
+      expect(screen.getByText(/Helpful \(13\)/i)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Join Challenge/i }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Log Completed Action/i })).toBeInTheDocument();
     });
   });
 });

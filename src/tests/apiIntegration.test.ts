@@ -182,5 +182,20 @@ describe('AirAware AI Backend API & Security Integration', () => {
     expect(actionRes.status).toBe(200);
     expect(actionRes.body.collectiveCompletions).toBe(beforeCompletions + 1);
   });
+
+  it('catches unexpected downstream errors via globalErrorHandler without leaking stack traces', async () => {
+    const app = createApp({
+      communityRepo: {
+        getOverview: async () => {
+          throw new Error('Disk permission denied /secret/internal/path');
+        },
+      } as unknown as CommunityRepository,
+    });
+
+    const res = await request(app).get('/api/community');
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('An unexpected server error occurred.');
+    expect(JSON.stringify(res.body)).not.toContain('/secret/internal/path');
+  });
 });
 

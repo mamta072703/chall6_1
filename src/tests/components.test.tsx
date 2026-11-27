@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { AqiBadge, DataStatusNotice } from '../components/AqiBadge.tsx';
@@ -87,7 +87,7 @@ describe('AirAware AI Frontend Components', () => {
     expect(screen.getByRole('link', { name: /Open Dashboard/i })).toBeInTheDocument();
   });
 
-  it('renders IndoorToolkitPage with CADR sizing and houseplant myth clarification', () => {
+  it('renders IndoorToolkitPage with interactive room tabs, CADR sizing, and myth clarification', () => {
     render(
       <MemoryRouter>
         <IndoorToolkitPage />
@@ -97,5 +97,15 @@ describe('AirAware AI Frontend Components', () => {
     expect(
       screen.getByText(/Scientific Clarification: Houseplants Cannot Replace Filtration/i)
     ).toBeInTheDocument();
+
+    const kitchenTab = screen.getByRole('tab', { name: 'Kitchen' });
+    fireEvent.click(kitchenTab);
+    expect(kitchenTab).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'room-tab-kitchen');
+    expect(screen.getByText(/Kitchen & Cooking Zone/i)).toBeInTheDocument();
+
+    const slider = screen.getByLabelText(/Room Floor Area/i);
+    fireEvent.change(slider, { target: { value: '35' } });
+    expect(screen.getByText(/412 m³\/h/i)).toBeInTheDocument();
   });
 });

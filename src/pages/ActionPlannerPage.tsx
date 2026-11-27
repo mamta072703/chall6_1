@@ -59,7 +59,10 @@ export const ActionPlannerPage: React.FC = () => {
     >
       <div className="space-y-6">
         {/* Progress Summary Strip */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <section aria-labelledby="planner-summary-heading" className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <h2 id="planner-summary-heading" className="sr-only">
+            Daily Action Progress Summary
+          </h2>
           <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-2">
             <p className="text-xs text-slate-500">Today’s Completion</p>
             <p className="text-2xl font-display font-semibold text-slate-900 tabular-nums">
@@ -229,7 +232,10 @@ export const ActionPlannerPage: React.FC = () => {
         </div>
 
         {/* Action Cards */}
-        <div className="space-y-3">
+        <section aria-labelledby="planner-actions-heading" className="space-y-3">
+          <h2 id="planner-actions-heading" className="sr-only">
+            Scheduled Household Actions
+          </h2>
           {filtered.map((item) => (
             <div
               key={item.id}
@@ -275,7 +281,7 @@ export const ActionPlannerPage: React.FC = () => {
               </div>
             </div>
           ))}
-        </div>
+        </section>
       </div>
     </AppShell>
   );

@@ -55,18 +55,20 @@ export const LocationSearchWidget: React.FC<LocationSearchWidgetProps> = ({
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setManualError(null);
-    const lat = Number(manualLat);
-    const lon = Number(manualLon);
+    const trimmedLat = manualLat.trim();
+    const trimmedLon = manualLon.trim();
+    const lat = Number(trimmedLat);
+    const lon = Number(trimmedLon);
     const name = manualName.trim();
     if (!name) {
       setManualError('Enter a city or neighborhood name.');
       return;
     }
-    if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
+    if (!trimmedLat || !Number.isFinite(lat) || lat < -90 || lat > 90) {
       setManualError('Latitude must be between -90 and 90.');
       return;
     }
-    if (!Number.isFinite(lon) || lon < -180 || lon > 180) {
+    if (!trimmedLon || !Number.isFinite(lon) || lon < -180 || lon > 180) {
       setManualError('Longitude must be between -180 and 180.');
       return;
     }

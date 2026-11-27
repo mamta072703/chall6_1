@@ -1,6 +1,7 @@
 import { Check, Plus, ShieldCheck, ThumbsUp, Users } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { AppShell } from '../components/AppShell.tsx';
+import { CommunityTipForm } from '../components/CommunityTipForm.tsx';
 import { ResilientImage } from '../components/ResilientImage.tsx';
 import { useAirAware } from '../context/AirAwareContext.tsx';
 import {
@@ -84,8 +85,8 @@ export const CommunityPage: React.FC = () => {
     try {
       const updated = await markTipHelpfulApi(tipId);
       setTips((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
-    } catch {
-      // ignore transient click errors
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to record helpful vote right now.');
     }
   };
 
@@ -245,85 +246,19 @@ export const CommunityPage: React.FC = () => {
             </div>
 
             {showTipForm && (
-              <form
+              <CommunityTipForm
+                tipCategory={tipCategory}
+                tipCost={tipCost}
+                tipTitle={tipTitle}
+                tipBody={tipBody}
+                submittingTip={submittingTip}
+                onCategoryChange={setTipCategory}
+                onCostChange={setTipCost}
+                onTitleChange={setTipTitle}
+                onBodyChange={setTipBody}
+                onCancel={() => setShowTipForm(false)}
                 onSubmit={handleTipSubmit}
-                className="p-4 rounded-lg bg-slate-50 border border-slate-200 space-y-3"
-              >
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label htmlFor="tip-category" className="block text-xs text-slate-600 mb-1">
-                      Category
-                    </label>
-                    <select
-                      id="tip-category"
-                      value={tipCategory}
-                      onChange={(e) => setTipCategory(e.target.value as CommunityTip['category'])}
-                      className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-md"
-                    >
-                      <option value="indoor_air">Indoor Air</option>
-                      <option value="clean_commute">Clean Commute</option>
-                      <option value="energy_saving">Energy Saving</option>
-                      <option value="waste_reduction">Waste Reduction</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label htmlFor="tip-cost" className="block text-xs text-slate-600 mb-1">
-                      Estimated Cost
-                    </label>
-                    <input
-                      id="tip-cost"
-                      type="text"
-                      value={tipCost}
-                      onChange={(e) => setTipCost(e.target.value)}
-                      placeholder="Free / Low cost ($5)"
-                      className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-md"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label htmlFor="tip-title" className="block text-xs text-slate-600 mb-1">
-                    Tip Headline
-                  </label>
-                  <input
-                    id="tip-title"
-                    type="text"
-                    required
-                    value={tipTitle}
-                    onChange={(e) => setTipTitle(e.target.value)}
-                    placeholder="e.g., Damp towel draft blocker under apartment main door"
-                    className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-md"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="tip-body" className="block text-xs text-slate-600 mb-1">
-                    Practical Details (do not include personal names or addresses)
-                  </label>
-                  <textarea
-                    id="tip-body"
-                    rows={3}
-                    required
-                    value={tipBody}
-                    onChange={(e) => setTipBody(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-md"
-                  />
-                </div>
-                <div className="flex justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowTipForm(false)}
-                    className="px-3 py-1.5 text-xs border border-slate-200 bg-white rounded-md"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={submittingTip}
-                    className="px-3.5 py-1.5 text-xs bg-teal-700 text-white rounded-md hover:bg-teal-800 disabled:opacity-50"
-                  >
-                    {submittingTip ? 'Publishing...' : 'Publish Tip'}
-                  </button>
-                </div>
-              </form>
+              />
             )}
 
             <div className="flex flex-wrap gap-1.5 p-1 bg-slate-100 rounded-lg" role="group" aria-label="Filter community tips by category">

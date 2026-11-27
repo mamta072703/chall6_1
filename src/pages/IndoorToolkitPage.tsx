@@ -132,9 +132,11 @@ export const IndoorToolkitPage: React.FC = () => {
               ).map((tab) => (
                 <button
                   key={tab.key}
+                  id={`room-tab-${tab.key}`}
                   type="button"
                   role="tab"
                   aria-selected={selectedRoom === tab.key}
+                  aria-controls="room-tabpanel"
                   onClick={() => setSelectedRoom(tab.key)}
                   className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap min-h-[36px] ${
                     selectedRoom === tab.key
@@ -148,7 +150,12 @@ export const IndoorToolkitPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="space-y-4" role="tabpanel" aria-label={room.name}>
+          <div
+            id="room-tabpanel"
+            className="space-y-4"
+            role="tabpanel"
+            aria-labelledby={`room-tab-${selectedRoom}`}
+          >
             <div>
               <h3 className="text-sm font-semibold text-slate-900">{room.name}</h3>
               <p className="text-xs text-slate-600 mt-0.5">Primary source: {room.primaryRisk}</p>

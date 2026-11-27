@@ -45,6 +45,8 @@ describe('Shared Validation & Security Hardening', () => {
     expect(isValidCoordinate(Number.NaN, 10)).toBe(false);
 
     expect(validateLocationSelection({ name: '', latitude: 10, longitude: 10 })).toBeNull();
+    expect(validateLocationSelection({ name: 'Test', latitude: null, longitude: null })).toBeNull();
+    expect(validateLocationSelection({ name: 'Test', latitude: '', longitude: '77.2' })).toBeNull();
     expect(
       validateLocationSelection({
         name: '<b>Delhi</b>',

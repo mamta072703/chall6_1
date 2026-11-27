@@ -151,7 +151,11 @@ export const HouseholdPreferencesForm: React.FC<HouseholdPreferencesFormProps> =
           <legend className="block text-xs font-medium text-slate-700 mb-2">
             Available Improvement Budget
           </legend>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div
+            className="grid grid-cols-1 sm:grid-cols-3 gap-3"
+            role="radiogroup"
+            aria-label="Available Improvement Budget"
+          >
             {BUDGET_OPTIONS.map((item) => {
               const active = draft.budget === item.value;
               return (
