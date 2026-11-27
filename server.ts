@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   createRateLimiter,
+  globalErrorHandler,
   jsonSyntaxErrorHandler,
   sanitizeUserText,
   securityHeaders,
@@ -29,6 +30,8 @@ export interface ServerDependencies {
 
 export function createApp(deps: ServerDependencies = {}): Express {
   const app = express();
+  app.disable('x-powered-by');
+  app.set('trust proxy', 1);
   const airQualityService = deps.airQualityService ?? new AirQualityService();
   const aiService = deps.aiService ?? new AiService();
   const communityRepo = deps.communityRepo ?? new CommunityRepository();
@@ -59,10 +62,14 @@ export function createApp(deps: ServerDependencies = {}): Express {
     });
   });
 
-  app.get('/api/locations/search', async (req: Request, res: Response) => {
-    const q = sanitizeUserText(req.query.q ?? '', 80);
-    const result = await airQualityService.searchLocations(q);
-    res.json(result);
+  app.get('/api/locations/search', async (req: Request, res: Response, next) => {
+    try {
+      const q = sanitizeUserText(req.query.q ?? '', 80);
+      const result = await airQualityService.searchLocations(q);
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
   });
 
   app.post('/api/air-quality/snapshot', async (req: Request, res: Response) => {
@@ -173,66 +180,84 @@ export function createApp(deps: ServerDependencies = {}): Express {
     }
   });
 
-  app.get('/api/community', async (_req: Request, res: Response) => {
-    const overview = await communityRepo.getOverview();
-    res.json(overview);
+  app.get('/api/community', async (_req: Request, res: Response, next) => {
+    try {
+      const overview = await communityRepo.getOverview();
+      res.json(overview);
+    } catch (error) {
+      next(error);
+    }
   });
 
-  app.post('/api/community/tips', communityWriteLimiter, async (req: Request, res: Response) => {
-    const body = (req.body ?? {}) as Partial<CommunityTip>;
-    const allowedCategories: CommunityTip['category'][] = [
-      'indoor_air',
-      'clean_commute',
-      'energy_saving',
-      'waste_reduction',
-    ];
-    const category = allowedCategories.includes(body.category as CommunityTip['category'])
-      ? (body.category as CommunityTip['category'])
-      : null;
-    const title = sanitizeUserText(body.title ?? '', 120);
-    const tipBody = sanitizeUserText(body.body ?? '', 400);
-    const estimatedCostLabel = sanitizeUserText(body.estimatedCostLabel ?? 'Free', 40) || 'Free';
+  app.post('/api/community/tips', communityWriteLimiter, async (req: Request, res: Response, next) => {
+    try {
+      const body = (req.body ?? {}) as Partial<CommunityTip>;
+      const allowedCategories: CommunityTip['category'][] = [
+        'indoor_air',
+        'clean_commute',
+        'energy_saving',
+        'waste_reduction',
+      ];
+      const category = allowedCategories.includes(body.category as CommunityTip['category'])
+        ? (body.category as CommunityTip['category'])
+        : null;
+      const title = sanitizeUserText(body.title ?? '', 120);
+      const tipBody = sanitizeUserText(body.body ?? '', 400);
+      const estimatedCostLabel = sanitizeUserText(body.estimatedCostLabel ?? 'Free', 40) || 'Free';
 
-    if (!category || title.length < 6 || tipBody.length < 12) {
-      res.status(400).json({
-        error: 'Please provide a valid category, title (min 6 chars), and description (min 12 chars).',
+      if (!category || title.length < 6 || tipBody.length < 12) {
+        res.status(400).json({
+          error: 'Please provide a valid category, title (min 6 chars), and description (min 12 chars).',
+        });
+        return;
+      }
+
+      const created = await communityRepo.addTip({
+        category,
+        title,
+        body: tipBody,
+        estimatedCostLabel,
       });
-      return;
+      res.status(201).json(created);
+    } catch (error) {
+      next(error);
     }
-
-    const created = await communityRepo.addTip({
-      category,
-      title,
-      body: tipBody,
-      estimatedCostLabel,
-    });
-    res.status(201).json(created);
   });
 
-  app.post('/api/community/tips/:id/helpful', communityWriteLimiter, async (req: Request, res: Response) => {
-    const id = sanitizeUserText(req.params.id, 60);
-    const updated = await communityRepo.markTipHelpful(id);
-    if (!updated) {
-      res.status(404).json({ error: 'Community tip not found.' });
-      return;
+  app.post('/api/community/tips/:id/helpful', communityWriteLimiter, async (req: Request, res: Response, next) => {
+    try {
+      const id = sanitizeUserText(req.params.id, 60);
+      const updated = await communityRepo.markTipHelpful(id);
+      if (!updated) {
+        res.status(404).json({ error: 'Community tip not found.' });
+        return;
+      }
+      res.json(updated);
+    } catch (error) {
+      next(error);
     }
-    res.json(updated);
   });
 
-  app.post('/api/community/challenges/:id/action', communityWriteLimiter, async (req: Request, res: Response) => {
-    const id = sanitizeUserText(req.params.id, 60);
-    const joinedNow = Boolean((req.body as { joinedNow?: boolean })?.joinedNow);
-    const updated = await communityRepo.recordChallengeAction(id, joinedNow);
-    if (!updated) {
-      res.status(404).json({ error: 'Community challenge not found.' });
-      return;
+  app.post('/api/community/challenges/:id/action', communityWriteLimiter, async (req: Request, res: Response, next) => {
+    try {
+      const id = sanitizeUserText(req.params.id, 60);
+      const joinedNow = Boolean((req.body as { joinedNow?: boolean })?.joinedNow);
+      const updated = await communityRepo.recordChallengeAction(id, joinedNow);
+      if (!updated) {
+        res.status(404).json({ error: 'Community challenge not found.' });
+        return;
+      }
+      res.json(updated);
+    } catch (error) {
+      next(error);
     }
-    res.json(updated);
   });
 
   app.use('/api', (_req: Request, res: Response) => {
     res.status(404).json({ error: 'API endpoint not found.' });
   });
+
+  app.use(globalErrorHandler);
 
   return app;
 }

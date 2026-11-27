@@ -5,21 +5,28 @@ import {
   classifyUsAqi,
   estimateCommuteImpact,
   generateSafetyAlerts,
+  interpretWeatherCode,
 } from '../shared/aqiUtils.ts';
 
 describe('AQI Classification & Environmental Utilities', () => {
-  it('classifies all US EPA AQI bands accurately with explicit non-color labels', () => {
-    expect(classifyUsAqi(28).label).toBe('Good');
-    expect(classifyUsAqi(75).label).toBe('Moderate');
-    expect(classifyUsAqi(132).label).toBe('Unhealthy for Sensitive Groups');
-    expect(classifyUsAqi(180).label).toBe('Unhealthy');
-    expect(classifyUsAqi(245).label).toBe('Very Unhealthy');
-    expect(classifyUsAqi(360).label).toBe('Hazardous');
+  it('classifies all US EPA AQI bands and exact boundaries with explicit non-color labels', () => {
+    expect(classifyUsAqi(0).key).toBe('good');
+    expect(classifyUsAqi(50).key).toBe('good');
+    expect(classifyUsAqi(51).key).toBe('moderate');
+    expect(classifyUsAqi(100).key).toBe('moderate');
+    expect(classifyUsAqi(101).key).toBe('usg');
+    expect(classifyUsAqi(150).key).toBe('usg');
+    expect(classifyUsAqi(151).key).toBe('unhealthy');
+    expect(classifyUsAqi(200).key).toBe('unhealthy');
+    expect(classifyUsAqi(201).key).toBe('very_unhealthy');
+    expect(classifyUsAqi(300).key).toBe('very_unhealthy');
+    expect(classifyUsAqi(301).key).toBe('hazardous');
   });
 
   it('handles invalid or missing AQI values safely without NaN', () => {
     expect(classifyUsAqi(null).key).toBe('good');
     expect(classifyUsAqi(undefined).key).toBe('good');
+    expect(classifyUsAqi(Number.NaN).key).toBe('good');
     expect(classifyUsAqi(-15).key).toBe('good');
   });
 
@@ -61,11 +68,17 @@ describe('AQI Classification & Environmental Utilities', () => {
     expect(alreadyLow.estimatedKgCo2eSavedRange).toContain('already low-emission baseline');
   });
 
-  it('calculates HEPA CADR recommendations and inversion risk properly', () => {
+  it('calculates HEPA CADR recommendations, weather codes, and inversion risk properly', () => {
     const cadr = calculateRecommendedCadr(20);
     expect(cadr.cadrM3PerHour).toBeGreaterThan(200);
     expect(cadr.cadrCfm).toBeGreaterThan(100);
+    expect(calculateRecommendedCadr(1).cadrM3PerHour).toBe(calculateRecommendedCadr(5).cadrM3PerHour);
+    expect(assessInversionRisk(null, 8)).toBe('unknown');
     expect(assessInversionRisk(4, 8)).toBe('high');
+    expect(assessInversionRisk(10, 12)).toBe('moderate');
     expect(assessInversionRisk(18, 12)).toBe('low');
+    expect(interpretWeatherCode(0)).toBe('Clear sky');
+    expect(interpretWeatherCode(45)).toBe('Winter fog / mist');
+    expect(interpretWeatherCode(undefined)).toBe('Conditions unavailable');
   });
 });

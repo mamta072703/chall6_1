@@ -12,6 +12,24 @@ interface CacheEntry<T> {
   cachedAtIso: string;
 }
 
+const MAX_CACHE_ENTRIES = 500;
+
+function setBoundedCache<T>(cache: Map<string, CacheEntry<T>>, key: string, entry: CacheEntry<T>): void {
+  if (cache.size >= MAX_CACHE_ENTRIES) {
+    const now = Date.now();
+    for (const [k, existing] of cache.entries()) {
+      if (existing.expiresAt <= now) {
+        cache.delete(k);
+      }
+    }
+    if (cache.size >= MAX_CACHE_ENTRIES) {
+      const oldestKey = cache.keys().next().value;
+      if (oldestKey) cache.delete(oldestKey);
+    }
+  }
+  cache.set(key, entry);
+}
+
 export class AirQualityService {
   private readonly aqCache = new Map<string, CacheEntry<AirQualitySnapshot>>();
   private readonly geoCache = new Map<string, CacheEntry<LocationSelection[]>>();
@@ -40,7 +58,7 @@ export class AirQualityService {
 
     const result = await searchOpenMeteoLocations(trimmed, this.fetcher);
     if (trimmed.length >= 2 && result.source === 'open_meteo_geocoding') {
-      this.geoCache.set(cacheKey, {
+      setBoundedCache(this.geoCache, cacheKey, {
         value: result.results,
         expiresAt: Date.now() + this.cacheTtlMs * 3,
         cachedAtIso: new Date().toISOString(),
@@ -81,7 +99,7 @@ export class AirQualityService {
         fetcher: this.fetcher,
       });
 
-      this.aqCache.set(coordKey, {
+      setBoundedCache(this.aqCache, coordKey, {
         value: snapshot,
         expiresAt: Date.now() + this.cacheTtlMs,
         cachedAtIso: snapshot.lastUpdatedIso,

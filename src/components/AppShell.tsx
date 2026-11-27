@@ -43,9 +43,11 @@ export const AppShell: React.FC<{
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
   const menuTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const closeMenuBtnRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     if (!mobileMenuOpen) return;
+    closeMenuBtnRef.current?.focus();
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setMobileMenuOpen(false);
@@ -146,6 +148,7 @@ export const AppShell: React.FC<{
                 <span>AirAware AI</span>
               </Link>
               <button
+                ref={closeMenuBtnRef}
                 type="button"
                 onClick={() => {
                   setMobileMenuOpen(false);

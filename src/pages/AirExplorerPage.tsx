@@ -69,7 +69,7 @@ export const AirExplorerPage: React.FC = () => {
             onSelectLocation={(loc) => setLocation(loc)}
           />
 
-          <div className="flex flex-wrap items-center gap-2 pt-1">
+          <div className="flex flex-wrap items-center gap-2 pt-1" role="group" aria-label="Quick switch city presets">
             <span className="text-xs text-slate-500 mr-1">Quick Switch:</span>
             {PRESET_CITIES.map((city) => {
               const active = city.name === profile.location.name;
@@ -77,8 +77,9 @@ export const AirExplorerPage: React.FC = () => {
                 <button
                   key={city.name}
                   type="button"
+                  aria-pressed={active}
                   onClick={() => setLocation(city)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-colors whitespace-nowrap ${
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-colors whitespace-nowrap min-h-[36px] ${
                     active
                       ? 'bg-teal-700 text-white border-teal-700'
                       : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
@@ -117,7 +118,9 @@ export const AirExplorerPage: React.FC = () => {
                   />
                 </div>
                 {loadingSnapshot && (
-                  <span className="text-xs text-teal-800 font-medium">Updating feed...</span>
+                  <span className="text-xs text-teal-800 font-medium" aria-live="polite">
+                    Updating feed...
+                  </span>
                 )}
               </div>
               <p className="text-sm text-slate-700">{snapshot.classification.outdoorGuidance}</p>
@@ -135,7 +138,11 @@ export const AirExplorerPage: React.FC = () => {
                       Identify cleaner midday windows vs. nocturnal thermal inversion spikes
                     </p>
                   </div>
-                  <div className="inline-flex items-center gap-1 p-1 bg-slate-100 rounded-lg shrink-0">
+                  <div
+                    className="inline-flex items-center gap-1 p-1 bg-slate-100 rounded-lg shrink-0"
+                    role="group"
+                    aria-label="Select chart pollutant metric"
+                  >
                     {(
                       [
                         { key: 'usAqi', label: 'US AQI' },
@@ -146,8 +153,9 @@ export const AirExplorerPage: React.FC = () => {
                       <button
                         key={tab.key}
                         type="button"
+                        aria-pressed={chartMetric === tab.key}
                         onClick={() => setChartMetric(tab.key)}
-                        className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+                        className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap min-h-[36px] ${
                           chartMetric === tab.key
                             ? 'bg-white text-slate-900 shadow-sm'
                             : 'text-slate-600 hover:text-slate-900'
@@ -239,12 +247,15 @@ export const AirExplorerPage: React.FC = () => {
               </h2>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
+                  <caption className="sr-only">
+                    Recent hourly US AQI, PM2.5, and PM10 readings for {snapshot.location.name}
+                  </caption>
                   <thead>
                     <tr className="border-b border-slate-200 text-slate-500">
-                      <th className="py-2 pr-4 font-medium">Timestamp</th>
-                      <th className="py-2 px-4 font-medium text-right">US AQI</th>
-                      <th className="py-2 px-4 font-medium text-right">PM2.5 (µg/m³)</th>
-                      <th className="py-2 pl-4 font-medium text-right">PM10 (µg/m³)</th>
+                      <th scope="col" className="py-2 pr-4 font-medium">Timestamp</th>
+                      <th scope="col" className="py-2 px-4 font-medium text-right">US AQI</th>
+                      <th scope="col" className="py-2 px-4 font-medium text-right">PM2.5 (µg/m³)</th>
+                      <th scope="col" className="py-2 pl-4 font-medium text-right">PM10 (µg/m³)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">

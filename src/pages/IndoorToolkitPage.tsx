@@ -117,7 +117,11 @@ export const IndoorToolkitPage: React.FC = () => {
             <h2 className="text-base font-display font-semibold text-slate-900">
               Room-by-Room Protection Checklist
             </h2>
-            <div className="flex flex-wrap gap-1.5 p-1 bg-slate-100 rounded-lg">
+            <div
+              className="flex flex-wrap gap-1.5 p-1 bg-slate-100 rounded-lg"
+              role="tablist"
+              aria-label="Select room for indoor air checklist"
+            >
               {(
                 [
                   { key: 'bedroom', label: 'Bedroom' },
@@ -129,8 +133,10 @@ export const IndoorToolkitPage: React.FC = () => {
                 <button
                   key={tab.key}
                   type="button"
+                  role="tab"
+                  aria-selected={selectedRoom === tab.key}
                   onClick={() => setSelectedRoom(tab.key)}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap min-h-[36px] ${
                     selectedRoom === tab.key
                       ? 'bg-white text-slate-900 shadow-sm'
                       : 'text-slate-600 hover:text-slate-900'
@@ -142,7 +148,7 @@ export const IndoorToolkitPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-4" role="tabpanel" aria-label={room.name}>
             <div>
               <h3 className="text-sm font-semibold text-slate-900">{room.name}</h3>
               <p className="text-xs text-slate-600 mt-0.5">Primary source: {room.primaryRisk}</p>

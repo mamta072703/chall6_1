@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {
@@ -49,7 +50,7 @@ export class CommunityRepository {
   }): Promise<CommunityTip> {
     const store = await this.load();
     const newTip: CommunityTip = {
-      id: `tip-${Date.now()}`,
+      id: `tip-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`,
       category: input.category,
       title: input.title,
       body: input.body,

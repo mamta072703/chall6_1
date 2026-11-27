@@ -36,6 +36,12 @@ export const OnboardingPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-4 focus:py-2 focus:bg-slate-900 focus:text-white focus:rounded-md focus:text-sm"
+      >
+        Skip to main content
+      </a>
       <header className="bg-white border-b border-slate-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <Link
@@ -51,7 +57,7 @@ export const OnboardingPage: React.FC = () => {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+      <main id="main-content" tabIndex={-1} className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
         <div className="mb-6 space-y-1">
           <p className="text-xs font-medium text-teal-800">Household Personalization</p>
           <h1 className="text-2xl sm:text-3xl font-display font-semibold text-slate-900 tracking-tight">

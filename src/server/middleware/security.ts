@@ -10,13 +10,16 @@ export { isValidCoordinate, sanitizePromptInput, sanitizePlainText as sanitizeUs
 /**
  * Sets secure HTTP response headers across all Express routes.
  */
-export function securityHeaders(_req: Request, res: Response, next: NextFunction): void {
+export function securityHeaders(req: Request, res: Response, next: NextFunction): void {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
   res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
   res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  if (req.path.startsWith('/api')) {
+    res.setHeader('Cache-Control', 'no-store');
+  }
   next();
 }
 
@@ -34,6 +37,20 @@ export function jsonSyntaxErrorHandler(
     return;
   }
   next(err);
+}
+
+/**
+ * Terminal Express error middleware that prevents stack-trace or HTML error leakage.
+ */
+export function globalErrorHandler(
+  err: unknown,
+  _req: Request,
+  res: Response,
+  _next: NextFunction
+): void {
+  console.error('Unhandled server error:', err);
+  if (res.headersSent) return;
+  res.status(500).json({ error: 'An unexpected server error occurred.' });
 }
 
 interface RateBucket {

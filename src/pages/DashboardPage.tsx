@@ -155,6 +155,60 @@ export const DashboardPage: React.FC = () => {
             </div>
           </section>
 
+          {/* Today's Household Decision Summary */}
+          <section
+            aria-label="Today's Household Decision Summary"
+            className="grid grid-cols-1 md:grid-cols-3 gap-4"
+          >
+            <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-1.5">
+              <h2 className="text-xs font-semibold text-teal-800 uppercase tracking-wide">
+                Is It Safe Outside Today?
+              </h2>
+              <p className="text-sm font-medium text-slate-900">{snapshot.classification.shortAction}</p>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                {snapshot.classification.outdoorGuidance}
+              </p>
+            </div>
+
+            <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-1.5">
+              <h2 className="text-xs font-semibold text-amber-900 uppercase tracking-wide">
+                Children, Seniors &amp; Sensitive Groups
+              </h2>
+              <p className="text-xs text-slate-700 leading-relaxed">
+                {snapshot.classification.sensitiveGroupGuidance}
+              </p>
+              {(profile.sensitiveGroups.children ||
+                profile.sensitiveGroups.elderly ||
+                profile.sensitiveGroups.pregnant ||
+                profile.sensitiveGroups.respiratoryOrCardiac) && (
+                <p className="text-[11px] font-medium text-amber-900 pt-1">
+                  Active household precautions enabled for your sensitive-group profile.
+                </p>
+              )}
+            </div>
+
+            <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col justify-between space-y-2">
+              <div className="space-y-1">
+                <h2 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">
+                  Indoor &amp; Commute Priority ({profile.budget} budget)
+                </h2>
+                <p className="text-xs text-slate-700 leading-relaxed">
+                  {snapshot.classification.ventilationDirective === 'open_cross_ventilate'
+                    ? 'Brief natural cross-ventilation is suitable right now; maintain low-emission travel habits.'
+                    : 'Keep windows sealed during peak smog, vent kitchen cooking outdoors, and prefer low-emission transit.'}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-3 text-xs font-medium text-teal-800 pt-1">
+                <Link to="/indoor-toolkit" className="hover:text-teal-950 underline-offset-2 hover:underline">
+                  Indoor Toolkit
+                </Link>
+                <Link to="/sustainability" className="hover:text-teal-950 underline-offset-2 hover:underline">
+                  Commute Impact
+                </Link>
+              </div>
+            </div>
+          </section>
+
           {/* Contextual Alerts & Safety Guidance */}
           {snapshot.alerts.length > 0 && (
             <section aria-label="Pollution and Safety Alerts" aria-live="polite" className="space-y-3">
@@ -282,24 +336,28 @@ export const DashboardPage: React.FC = () => {
 
                 <ul className="divide-y divide-slate-100">
                   {actions.slice(0, 4).map((item) => (
-                    <li key={item.id} className="py-2.5 flex items-start gap-3">
+                    <li key={item.id} className="py-2.5 flex items-start gap-2">
                       <button
                         type="button"
                         onClick={() => toggleActionComplete(item.id)}
                         aria-pressed={item.completed}
                         aria-label={`Mark "${item.title}" as ${item.completed ? 'incomplete' : 'completed'}`}
-                        className={`mt-0.5 w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-colors ${
-                          item.completed
-                            ? 'bg-teal-700 border-teal-700 text-white'
-                            : 'border-slate-300 bg-white hover:border-teal-600'
-                        }`}
+                        className="p-2 -m-2 shrink-0 flex items-center justify-center rounded-lg hover:bg-slate-100/70 min-h-[44px] min-w-[44px]"
                       >
-                        {item.completed && <CheckCircle2 className="w-3.5 h-3.5" />}
+                        <span
+                          className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
+                            item.completed
+                              ? 'bg-teal-700 border-teal-700 text-white'
+                              : 'border-slate-300 bg-white'
+                          }`}
+                        >
+                          {item.completed && <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />}
+                        </span>
                       </button>
                       <div className="min-w-0">
                         <p
                           className={`text-sm ${
-                            item.completed ? 'line-through text-slate-400' : 'text-slate-800'
+                            item.completed ? 'line-through text-slate-500' : 'text-slate-800'
                           }`}
                         >
                           {item.title}
